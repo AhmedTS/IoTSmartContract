@@ -17,30 +17,26 @@ contract IoTSmartContract{
     event Subscribed(address customer, uint topicID, uint amount);
     event Accessed(address customer, uint TopicID, uint amount);
     event Refunded(address customer, uint amount);
-    address private owner; //owner's ethereum address
-    Broker private broker; //Object representing MQTT Broker
-    topic[] private topics; //Array of topics the IoT Device provides
-    mapping (address => uint) public deposits; //Mapping of every customer to their deposit
-    mapping (address => subscription[]) subscriptions; //Mapping of every customer to their subscription
+    address private owner;
+    Broker private broker;
+    topic[] private topics;
+    mapping (address => uint) public deposits;
+    mapping (address => subscription[]) subscriptions;
     uint32 totalSubscriptions = 1;
     uint32 internal totalAccesses = 1;
-    mapping (address => uint[]) accessing; //keeps track of whether cutomer is currently accessing.
-    modifier onlyOwner{ //ensure methods are accessed only by contract owner
+    mapping (address => uint[]) accessing;
+    modifier onlyOwner{
       require(msg.sender == owner);
       _;
     }
-    modifier notOwner{ //ensure methods are not accessed only by contract owner (customer)
+    modifier notOwner{
       require(msg.sender != owner);
       _;
     }
-    modifier onlyBroker{ //ensure methods are only accessed by the broker
+    modifier onlyBroker{
       require(msg.sender == address(broker));
       _;
     }
-    //d = IP address of device
-    //b = address of Broker contract on the blockchain
-    //name = Name of the first topic
-    //rate = rate of the first topic
     function IoTSmartContract(address b, string name, uint rate) public{
         owner = msg.sender;
         broker = Broker(b);
@@ -48,14 +44,11 @@ contract IoTSmartContract{
         broker.addTopic(topics.length-1);
         TopicAdded(0,name,rate);
     }
-    //Name = Name of topics
-    //Rate = ratePerHour of the topc
     function addTopic(string name, uint rate) onlyOwner public{
         topics.push(topic(topics.length,name,rate));
         broker.addTopic(topics.length-1);
         TopicAdded(topics.length-1,name,rate);
     }
-    //allows users to deposit ether to their account on contract
     function deposit() payable notOwner public{
         deposits[msg.sender] += msg.value;
         Deposited(msg.sender,msg.value);
@@ -63,8 +56,6 @@ contract IoTSmartContract{
     function getDeposit() public notOwner view returns(uint){
         return deposits[msg.sender];
     }
-    //topicID = ID of topic we are subscribing to 
-    //amount = Amount of ether from the deposit we want to subcribe with
     function subscribe(uint topicID, uint amount) notOwner public{
         require(topicID<topics.length && amount<=deposits[msg.sender]);
         bool found = false;
