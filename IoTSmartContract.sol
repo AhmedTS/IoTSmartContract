@@ -156,6 +156,8 @@ contract Broker{
        bytes32 token;
        uint time;
     }
+    event customerAccessStart(address customer, uint topicID, uint duration);
+    event customerAccessEnded(address customer, uint topicID, uint duration);
     mapping (address => uint[]) publishers;
     mapping (address => topicAccess[]) subscribers;
     function Broker() public{}
@@ -175,17 +177,21 @@ contract Broker{
     function access(uint topic, bytes32 token) public{
         bool found = false;
         uint index = 0;
+        uint duration = 0;
         for( uint i=0; i < subscribers[msg.sender].length; i++){
            if(subscribers[msg.sender][i].topicID==topic && subscribers[msg.sender][i].token==token){
                found = true;
                index = i;
+               duration = subscribers[msg.sender][i].time;
            }
         }
         require(found);
         clearSubscription(msg.sender,topic);
+        customerAccessStart(msg.sender,topic,duration);
         //send Data off the chain
     }
     function accessEnded(address d, address c, uint topic, uint time) public{
+        customerAccessEnded(c,topic,time);
         IoTSmartContract device = IoTSmartContract(d);
         device.updateSubscriptionTime(c,topic,time);
     }
