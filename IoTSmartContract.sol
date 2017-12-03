@@ -56,7 +56,7 @@ contract IoTSmartContract{
     function getDeposit() public notOwner view returns(uint){
         return deposits[msg.sender];
     }
-    function subscribe(uint topicID, uint amount) notOwner public{
+    function subscribe(uint topicID, uint256 amount) notOwner public{
         require(topicID<topics.length && amount<=deposits[msg.sender]);
         bool found = false;
         for(uint i=0; i < subscriptions[msg.sender].length; i++){
@@ -67,7 +67,8 @@ contract IoTSmartContract{
           }
         }
         if(!found){
-          subscriptions[msg.sender].push(subscription(totalSubscriptions,msg.sender,topicID,amount));
+          subscriptions[msg.sender].push(
+              subscription(totalSubscriptions,msg.sender,topicID,amount));
           totalSubscriptions++;
         }
         deposits[msg.sender] -= amount;
@@ -93,7 +94,8 @@ contract IoTSmartContract{
            accessing[customer].length--;
         }
     }
-    function access(uint topicID) public notOwner returns(address, uint, bytes32){
+    function access(uint topicID) public notOwner 
+                                    returns(address, uint, bytes32){
         require(!isAccessing(msg.sender,topicID));
         bool found = false;
         uint balance = 0;
@@ -124,7 +126,8 @@ contract IoTSmartContract{
     function getTopicRate(uint topicID) private view returns (uint){
         return topics[topicID].ratePerHour;
     }
-    function updateSubscriptionTime(address customer,uint topicID, uint time) public onlyBroker{
+    function updateSubscriptionTime(address customer,uint topicID,
+                                    uint time) public onlyBroker{
         uint usage = time * getTopicRate(topicID);
         for(uint i = 0; i < subscriptions[customer].length; i++){
           if(subscriptions[customer][i].topicID == topicID){
@@ -146,7 +149,8 @@ contract IoTSmartContract{
         deposits[msg.sender] = 0;
         for(uint j = 0; j < subscriptions[msg.sender].length; j++){
            subscriptions[msg.sender][j].balance = 0;
-           broker.clearSubscription(msg.sender,subscriptions[msg.sender][i].topicID);
+           broker.clearSubscription(msg.sender,
+                                subscriptions[msg.sender][j].topicID);
         }
     }
 }
@@ -164,7 +168,8 @@ contract Broker{
     function addTopic(uint topicID) public{
         publishers[msg.sender].push(topicID);
     }
-    function addSubscriberAccess(address customer, uint tID, bytes32 token, uint time) public{
+    function addSubscriberAccess(address customer, 
+                                uint tID, bytes32 token, uint time) public{
         bool found = false;
         for( uint i=0; i < publishers[msg.sender].length; i++){
            if(publishers[msg.sender][i]==tID){
@@ -179,7 +184,8 @@ contract Broker{
         uint index = 0;
         uint duration = 0;
         for( uint i=0; i < subscribers[msg.sender].length; i++){
-           if(subscribers[msg.sender][i].topicID==topic && subscribers[msg.sender][i].token==token){
+           if(subscribers[msg.sender][i].topicID==topic 
+            && subscribers[msg.sender][i].token==token){
                found = true;
                index = i;
                duration = subscribers[msg.sender][i].time;
@@ -188,9 +194,9 @@ contract Broker{
         require(found);
         clearSubscription(msg.sender,topic);
         customerAccessStart(msg.sender,topic,duration);
-        //send Data off the chain
     }
-    function accessEnded(address d, address c, uint topic, uint time) public{
+    function accessEnded(address d, address c, uint topic, uint time)
+                        public{
         customerAccessEnded(c,topic,time);
         IoTSmartContract device = IoTSmartContract(d);
         device.updateSubscriptionTime(c,topic,time);
@@ -206,7 +212,8 @@ contract Broker{
            }
         }
         if(found){
-           subscribers[customer][index] = subscribers[customer][subscribers[customer].length-1];
+           subscribers[customer][index] = 
+                subscribers[customer][subscribers[customer].length-1];
            subscribers[customer].length--;
         }
     }
