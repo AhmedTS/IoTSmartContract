@@ -15,10 +15,11 @@ contract IoTSmartContract{
     event Deposited(address from, uint value);
     event TopicAdded(uint ID, string name, uint rate);
     event Subscribed(address customer, uint topicID, uint amount);
+    event Accessing(address customer, uint topicID, bytes32 token, uint accessTime);
     event Accessed(address customer, uint TopicID, uint amount);
     event Refunded(address customer, uint amount);
     address private owner;
-    Broker private broker;
+    address private broker;
     topic[] private topics;
     mapping (address => uint) public deposits;
     mapping (address => subscription[]) subscriptions;
@@ -34,19 +35,17 @@ contract IoTSmartContract{
       _;
     }
     modifier onlyBroker{
-      require(msg.sender == address(broker));
+      require(msg.sender == broker);
       _;
     }
     function IoTSmartContract(address b, string name, uint rate) public{
         owner = msg.sender;
-        broker = Broker(b);
+        broker = b;
         topics.push(topic(topics.length,name,rate));
-        broker.addTopic(topics.length-1);
         TopicAdded(0,name,rate);
     }
     function addTopic(string name, uint rate) onlyOwner public{
         topics.push(topic(topics.length,name,rate));
-        broker.addTopic(topics.length-1);
         TopicAdded(topics.length-1,name,rate);
     }
     function deposit() payable notOwner public{
@@ -78,7 +77,6 @@ contract IoTSmartContract{
         for(uint i=0;i<accessing[customer].length;i++)
             if(accessing[customer][i]==topicID)
                 return true;
-                
         return false;
     }
     function removeAccessing(address customer, uint topicID) internal{
@@ -95,7 +93,7 @@ contract IoTSmartContract{
         }
     }
     function access(uint topicID) public notOwner 
-                                    returns(address, uint, bytes32){
+                                    returns(uint, bytes32){
         require(!isAccessing(msg.sender,topicID));
         bool found = false;
         uint balance = 0;
@@ -120,8 +118,8 @@ contract IoTSmartContract{
             token = keccak256(owner,totalAccesses,msg.sender,topicID);
         totalAccesses++;
         accessing[msg.sender].push(topicID);
-        broker.addSubscriberAccess(msg.sender,topicID,token,accessTime);
-        return (address(broker),accessTime,token);
+        Accessing(msg.sender,topicID,token,accessTime);
+        return (accessTime,token);
     }
     function getTopicRate(uint topicID) private view returns (uint){
         return topics[topicID].ratePerHour;
@@ -149,72 +147,6 @@ contract IoTSmartContract{
         deposits[msg.sender] = 0;
         for(uint j = 0; j < subscriptions[msg.sender].length; j++){
            subscriptions[msg.sender][j].balance = 0;
-           broker.clearSubscription(msg.sender,
-                                subscriptions[msg.sender][j].topicID);
-        }
-    }
-}
-contract Broker{
-    struct topicAccess{
-       uint topicID;
-       bytes32 token;
-       uint time;
-    }
-    event customerAccessStart(address customer, uint topicID, uint duration);
-    event customerAccessEnded(address customer, uint topicID, uint duration);
-    mapping (address => uint[]) publishers;
-    mapping (address => topicAccess[]) subscribers;
-    function Broker() public{}
-    function addTopic(uint topicID) public{
-        publishers[msg.sender].push(topicID);
-    }
-    function addSubscriberAccess(address customer, 
-                                uint tID, bytes32 token, uint time) public{
-        bool found = false;
-        for( uint i=0; i < publishers[msg.sender].length; i++){
-           if(publishers[msg.sender][i]==tID){
-               found = true;
-           }
-        }
-        require(found);
-        subscribers[customer].push(topicAccess(tID,token,time));
-    }
-    function access(uint topic, bytes32 token) public{
-        bool found = false;
-        uint index = 0;
-        uint duration = 0;
-        for( uint i=0; i < subscribers[msg.sender].length; i++){
-           if(subscribers[msg.sender][i].topicID==topic 
-            && subscribers[msg.sender][i].token==token){
-               found = true;
-               index = i;
-               duration = subscribers[msg.sender][i].time;
-           }
-        }
-        require(found);
-        clearSubscription(msg.sender,topic);
-        customerAccessStart(msg.sender,topic,duration);
-    }
-    function accessEnded(address d, address c, uint topic, uint time)
-                        public{
-        customerAccessEnded(c,topic,time);
-        IoTSmartContract device = IoTSmartContract(d);
-        device.updateSubscriptionTime(c,topic,time);
-    }
-    function clearSubscription(address customer, uint topicID) public{
-        bool found = false;
-        uint index = 0;
-        for(uint i=0; i < subscribers[customer].length; i++){
-           if(topicID == subscribers[customer][i].topicID){
-               index = i;
-               found = true;
-               break;
-           }
-        }
-        if(found){
-           subscribers[customer][index] = 
-                subscribers[customer][subscribers[customer].length-1];
-           subscribers[customer].length--;
         }
     }
 }
